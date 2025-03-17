@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
+using TMPro;
 
 public class WhackAMoleController : MonoBehaviour
 {
@@ -16,7 +17,7 @@ public class WhackAMoleController : MonoBehaviour
     [Header("References")]
     public GameObject hammer;
     public GameObject[] moles;
-    public TMPro.TextMeshProUGUI scoreText;
+    public TextMeshPro scoreText; // 3D TextMeshPro
     
     // Dictionary to track cooldowns for each mole
     private Dictionary<GameObject, float> moleCooldowns = new Dictionary<GameObject, float>();
@@ -34,9 +35,22 @@ public class WhackAMoleController : MonoBehaviour
                 {
                     Debug.LogError($"Mole{i + 1} not found as a child of WhacAMole");
                 }
-                
-                // Initialize cooldown for each mole
-                moleCooldowns[moles[i]] = 0f;
+                else
+                {
+                    // Initialize cooldown for each mole
+                    moleCooldowns[moles[i]] = 0f;
+                }
+            }
+        }
+        else
+        {
+            // Initialize cooldowns for moles that were set in the inspector
+            foreach (GameObject mole in moles)
+            {
+                if (mole != null && !moleCooldowns.ContainsKey(mole))
+                {
+                    moleCooldowns[mole] = 0f;
+                }
             }
         }
         
@@ -52,12 +66,18 @@ public class WhackAMoleController : MonoBehaviour
     
     void Update()
     {
-        // Update cooldowns
-        foreach (var mole in moles)
+        // Update cooldowns - with null check and key check
+        if (moles != null)
         {
-            if (moleCooldowns[mole] > 0)
+            foreach (GameObject mole in moles)
             {
-                moleCooldowns[mole] -= Time.deltaTime;
+                if (mole != null && moleCooldowns.ContainsKey(mole))
+                {
+                    if (moleCooldowns[mole] > 0)
+                    {
+                        moleCooldowns[mole] -= Time.deltaTime;
+                    }
+                }
             }
         }
     }
@@ -65,24 +85,46 @@ public class WhackAMoleController : MonoBehaviour
     // This method should be called when the hammer collides with a mole
     public void HitMole(GameObject hitMole)
     {
-        // Check if the mole is in cooldown
-        if (moleCooldowns[hitMole] <= 0)
+        // Check if the mole exists in our dictionary
+        if (hitMole != null && moleCooldowns.ContainsKey(hitMole))
         {
-            // Increment score
-            score++;
-            UpdateScoreDisplay();
-            
-            // Play hit sound
-            if (hitSound != null)
+            // Check if the mole is in cooldown
+            if (moleCooldowns[hitMole] <= 0)
             {
-                hitSoundSource.PlayOneShot(hitSound);
+                // Increment score
+                score++;
+                UpdateScoreDisplay();
+                
+                // Play hit sound
+                if (hitSound != null && hitSoundSource != null)
+                {
+                    hitSoundSource.PlayOneShot(hitSound);
+                }
+                
+                // Set cooldown for this mole
+                moleCooldowns[hitMole] = hitCooldown;
             }
+        }
+        else
+        {
+            Debug.LogWarning("Tried to hit a mole that isn't in our dictionary: " + 
+                            (hitMole != null ? hitMole.name : "null"));
             
-            // Set cooldown for this mole
-            moleCooldowns[hitMole] = hitCooldown;
-            
-            // Optional: Animate the mole being hit
-            StartCoroutine(AnimateMoleHit(hitMole));
+            // Add the mole to our dictionary if it exists but isn't tracked
+            if (hitMole != null && !moleCooldowns.ContainsKey(hitMole))
+            {
+                moleCooldowns.Add(hitMole, hitCooldown);
+                
+                // Still count this hit
+                score++;
+                UpdateScoreDisplay();
+                
+                // Play hit sound
+                if (hitSound != null && hitSoundSource != null)
+                {
+                    hitSoundSource.PlayOneShot(hitSound);
+                }
+            }
         }
     }
     
@@ -92,24 +134,5 @@ public class WhackAMoleController : MonoBehaviour
         {
             scoreText.text = $"Score: {score}";
         }
-    }
-    
-    private IEnumerator AnimateMoleHit(GameObject mole)
-    {
-        // Save original position
-        Vector3 originalPosition = mole.transform.localPosition;
-        
-        // Move mole down
-        mole.transform.localPosition = new Vector3(
-            originalPosition.x,
-            originalPosition.y - 0.2f,
-            originalPosition.z
-        );
-        
-        // Wait
-        yield return new WaitForSeconds(0.3f);
-        
-        // Move mole back up
-        mole.transform.localPosition = originalPosition;
     }
 }
