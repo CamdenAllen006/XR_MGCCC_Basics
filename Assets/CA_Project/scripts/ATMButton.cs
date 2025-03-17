@@ -1,6 +1,7 @@
 using UnityEngine;
+using UnityEngine.XR.Interaction.Toolkit;
 
-public class ATMButton : MonoBehaviour
+public class ATMButton : UnityEngine.XR.Interaction.Toolkit.Interactables.XRBaseInteractable
 {
     public enum ButtonType { Digit, Cancel, Enter, Reset, InsertCard, MenuOption }
     public ButtonType buttonType;
@@ -13,19 +14,20 @@ public class ATMButton : MonoBehaviour
 
     private ATMController atmController;
 
-    void Start()
+    protected override void Awake()
     {
+        base.Awake();
         // Look for the ATMController in the scene.
-        atmController = FindFirstObjectByType<ATMController>();
+        atmController = FindObjectOfType<ATMController>();
         if (atmController == null)
         {
             Debug.LogError("ATMController not found in the scene. Please ensure one is present.");
         }
     }
 
-    // OnMouseDown is called when the user clicks on the object's collider.
-    void OnMouseDown()
+    protected override void OnSelectEntered(SelectEnterEventArgs args)
     {
+        base.OnSelectEntered(args);
         if (atmController == null)
             return;
 
